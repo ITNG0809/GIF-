@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GIFメーカー | 動画・音声をGIFに変換</title>
+<style>
+:root{--bg:#eceef3;--sf:#fff;--ink:#1b2230;--mu:#5d6678;--ac:#d92b57;--ac2:#fff;--bd:#cdd2dd;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--sf:#1b202b;--ink:#e8ebf2;--mu:#9aa3b5;--ac:#ff5c85;--ac2:#1a0a10;--bd:#333b4d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12151c;--sf:#1b202b;--ink:#e8ebf2;--mu:#9aa3b5;--ac:#ff5c85;--ac2:#1a0a10;--bd:#333b4d;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:.02em}
+.lead{color:var(--mu);margin:0 0 18px}
+.strip{height:14px;margin-bottom:14px;background:repeating-linear-gradient(90deg,var(--ink) 0 14px,transparent 14px 26px);opacity:.85;border-radius:2px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px}
+#drop{border:2px dashed var(--bd);border-radius:10px;padding:26px 12px;text-align:center;cursor:pointer;color:var(--mu)}
+#drop.over,#drop:focus-visible{border-color:var(--ac);color:var(--ink);outline:none}
+#src{display:none;width:100%;max-height:300px;margin-top:12px;background:#000;border-radius:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+label{display:block;font-size:13px;color:var(--mu)}
+input[type=number],input[type=text],select{width:100%;margin-top:4px;padding:7px 8px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--bd);border-radius:6px}
+input[type=range]{width:100%;accent-color:var(--ac)}
+.chk{display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px}
+button,.btn{font:inherit;font-weight:700;padding:10px 20px;border-radius:8px;border:0;background:var(--ac);color:var(--ac2);cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.sub{background:transparent;color:var(--ink);border:1px solid var(--bd)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden;margin-top:12px;display:none}
+#bar i{display:block;height:100%;width:0;background:var(--ac)}
+#msg{color:var(--mu);font-size:13px;margin-top:6px;min-height:20px}
+#info{font-size:13px;color:var(--mu);margin-top:10px}
+#res{display:none}
+.stage{display:flex;gap:16px;flex-wrap:wrap}
+.stage>div{flex:1 1 300px;min-width:0}
+.stage img,.stage canvas{max-width:100%;height:auto;background:repeating-conic-gradient(#8883 0 25%,transparent 0 50%) 0 0/16px 16px;border-radius:6px;display:block}
+.cap{font-size:13px;color:var(--mu);margin:6px 0}
+</style>
+</head>
+<body>
+<main>
+<div class="strip" aria-hidden="true"></div>
+<h1>GIFメーカー</h1>
+<p class="lead">MP4・WebM・MOVなどの動画、MP3などの音声をGIFにします。処理はすべてブラウザ内で行われ、ファイルは外部に送信されません。</p>
+
+<section class="card">
+  <h2>1. ファイルを選ぶ</h2>
+  <div id="drop" tabindex="0" role="button">ここにファイルをドロップ、またはクリックして選択</div>
+  <input id="file" type="file" accept="video/*,audio/*,.mp4,.mov,.webm,.mkv,.mp3,.wav,.ogg,.m4a" hidden>
+  <video id="src" controls muted playsinline></video>
+  <div id="info"></div>
+</section>
+
+<section class="card">
+  <h2>2. 設定</h2>
+  <div class="grid">
+    <label>フレームレート: <b id="fpsV">10</b> fps<input id="fps" type="range" min="1" max="30" value="10"></label>
+    <label>横幅 (px)<input id="w" type="number" min="40" max="1000" value="480"></label>
+    <label>開始 (秒)<input id="st" type="number" min="0" step="0.1" value="0"></label>
+    <label>終了 (秒)<input id="en" type="number" min="0" step="0.1" value="0"></label>
+    <label>再生速度 (倍)<input id="sp" type="number" min="0.1" max="8" step="0.1" value="1"></label>
+    <label>再生方向<select id="mode"><option value="n">通常</option><option value="r">逆再生</option><option value="b">往復 (ブーメラン)</option></select></label>
+    <label>ループ回数 (0 = 無限)<input id="lp" type="number" min="0" max="100" value="0"></label>
+    <label>色の品質<select id="q"><option value="1">高品質 (遅い)</option><option value="3" selected>標準</option><option value="8">高速</option></select></label>
+    <label>字幕テキスト (任意)<input id="cap" type="text" placeholder="例: できた!"></label>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <label class="chk"><input id="num" type="checkbox">コマ番号を画像に焼き込む (順序の確認用)</label>
+  </div>
+  <div id="est" class="cap"></div>
+  <div class="row" style="margin-top:8px"><button id="go" disabled>GIFに変換</button></div>
+  <div id="bar"><i></i></div>
+  <div id="msg" role="status"></div>
+</section>
+
+<section class="card" id="res">
+  <h2>3. 結果</h2>
+  <div class="stage">
+    <div><div class="cap">GIFプレビュー</div><img id="out" alt="変換されたGIF"></div>
+    <div>
+      <div class="cap">コマ確認 (スライダーで1コマずつ確認できます)</div>
+      <canvas id="cv"></canvas>
+      <input id="sl" type="range" min="0" value="0" aria-label="コマ位置">
+      <div class="cap" id="fl"></div>
+    </div>
+  </div>
+  <div id="stat" class="cap"></div>
+  <div class="row"><a id="dl" class="btn" download="output.gif">GIFをダウンロード</a></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let srcT=[],file=null,isAudio=false,abuf=null,dur=0,vw=16,vh=9,srcUrl=null,outUrl=null,shown=[],ord=[];
+const v=$('src');
+const MAXF=500;
+
+$('fps').oninput=()=>{$('fpsV').textContent=$('fps').value;est()};
+['w','st','en','sp','mode'].forEach(k=>$(k).oninput=est);
+$('drop').onclick=()=>$('file').click();
+$('drop').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click()}};
+$('drop').ondragover=e=>{e.preventDefault();$('drop').classList.add('over')};
+$('drop').ondragleave=()=>$('drop').classList.remove('over');
+$('drop').ondrop=e=>{e.preventDefault();$('drop').classList.remove('over');if(e.dataTransfer.files[0])load(e.dataTransfer.files[0])};
+$('file').onchange=e=>{if(e.target.files[0])load(e.target.files[0])};
+
+function setMsg(t){$('msg').textContent=t}
+function dims(){const W=Math.max(40,Math.min(1000,+$('w').value||480));return[W,isAudio?Math.round(W*9/16):Math.round(W*vh/vw)]}
+function plan(){
+  const fps=+$('fps').value,sp=Math.max(.1,+$('sp').value||1),st=Math.max(0,+$('st').value||0),en=Math.min(dur,+$('en').value||dur);
+  const step=sp/fps,n=Math.max(0,Math.min(MAXF,Math.floor((en-st)/step)));
+  return{fps,sp,st,en,step,n};
+}
+function est(){
+  if(!file)return;const p=plan(),[W,H]=dims();
+  $('est').textContent=`出力予定: ${p.n}コマ / ${W}×${H}px${p.n>=MAXF?` (上限${MAXF}コマに制限)`:''}`;
+}
+async function load(f){
+  file=f;$('go').disabled=true;$('res').style.display='none';setMsg('読み込み中…');
+  if(srcUrl)URL.revokeObjectURL(srcUrl);srcUrl=URL.createObjectURL(f);
+  isAudio=/^audio\//.test(f.type)||/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(f.name);
+  try{
+    if(isAudio){
+      const ac=new (window.AudioContext||window.webkitAudioContext)();
+      abuf=await ac.decodeAudioData(await f.arrayBuffer());ac.close();dur=abuf.duration;
+      v.style.display='block';v.src=srcUrl;v.muted=false;v.style.height='54px';
+    }else{
+      v.style.height='';v.muted=true;v.style.display='block';v.src=srcUrl;
+      await new Promise((ok,ng)=>{v.onloadedmetadata=ok;v.onerror=()=>ng(new Error('この形式はブラウザで再生できません'))});
+      dur=v.duration;vw=v.videoWidth||16;vh=v.videoHeight||9;
+      if(!isFinite(dur)||!vw)throw new Error('動画の長さまたは映像を取得できません');
+    }
+  }catch(e){setMsg('読み込みに失敗しました: '+e.message+'。MP4 (H.264) かWebMなど、ブラウザで再生できる形式をお試しください。');return}
+  $('en').value=dur.toFixed(2);$('st').value=0;
+  if(!isAudio)$('w').value=Math.min(480,vw);
+  $('info').textContent=`${f.name} / ${(f.size/1048576).toFixed(1)}MB / ${dur.toFixed(2)}秒${isAudio?' / 音声 (波形アニメーションを作成します)':` / ${vw}×${vh}`}`;
+  setMsg('');$('go').disabled=false;est();
+}
+
+const seek=t=>new Promise(res=>{let d=false;const fin=()=>{if(!d){d=true;v.removeEventListener('seeked',fin);res()}};v.addEventListener('seeked',fin);setTimeout(fin,4000);v.currentTime=t});
+const tick=()=>new Promise(r=>setTimeout(r,0));
+
+function drawAudio(ctx,W,H,t,k,n){
+  ctx.fillStyle='#10131a';ctx.fillRect(0,0,W,H);
+  const d=abuf.getChannelData(0),sr=abuf.sampleRate,c=Math.floor(t*sr),win=2048,bars=48,bw=W/bars;
+  ctx.fillStyle=`hsl(${340-k/Math.max(1,n)*120},80%,60%)`;
+  for(let b=0;b<bars;b++){let s=0,a=c-win/2+Math.floor(b*win/bars),m=Math.floor(win/bars);
+    for(let i=0;i<m;i++){const x=d[a+i]||0;s+=x*x}
+    const h=Math.min(1,Math.sqrt(s/m)*3)*H*.8+2;ctx.fillRect(b*bw+1,(H-h)/2,bw-2,h)}
+  ctx.fillStyle='#aab';ctx.font=`${Math.round(H/16)}px sans-serif`;ctx.textAlign='left';ctx.fillText(t.toFixed(2)+' s',8,H-8);
+}
+
+/* ---- 色の量子化 (メディアンカット) ---- */
+function makePalette(frames,stride){
+  const hist=new Uint32Array(32768);
+  for(const f of frames){const d=f.data;for(let p=0;p<d.length;p+=4*stride)hist[(d[p]>>3<<10)|(d[p+1]>>3<<5)|(d[p+2]>>3)]++}
+  const cols=[];for(let i=0;i<32768;i++)if(hist[i])cols.push(i);
+  const ch=(c,s)=>(c>>s)&31;let boxes=[cols];
+  while(boxes.length<256){
+    let bi=-1,best=0;
+    boxes.forEach((b,i)=>{if(b.length>1){let s=0;for(const c of b)s+=hist[c];if(s>best){best=s;bi=i}}});
+    if(bi<0)break;const b=boxes[bi];let ws=10,wr=-1;
+    for(const s of[10,5,0]){let lo=31,hi=0;for(const c of b){const x=ch(c,s);if(x<lo)lo=x;if(x>hi)hi=x}if(hi-lo>wr){wr=hi-lo;ws=s}}
+    b.sort((x,y)=>ch(x,ws)-ch(y,ws));
+    let tot=0;for(const c of b)tot+=hist[c];let acc=0,cut=1;
+    for(let i=0;i<b.length-1;i++){acc+=hist[b[i]];cut=i+1;if(acc>=tot/2)break}
+    boxes.splice(bi,1,b.slice(0,cut),b.slice(cut));
+  }
+  const pal=new Uint8Array(768),map=new Int16Array(32768).fill(-1);
+  boxes.forEach((b,i)=>{let r=0,g=0,bl=0,t=0;for(const c of b){const h=hist[c];r+=ch(c,10)*h;g+=ch(c,5)*h;bl+=ch(c,0)*h;t+=h;map[c]=i}
+    t=t||1;pal[i*3]=Math.min(255,r/t*8+4);pal[i*3+1]=Math.min(255,g/t*8+4);pal[i*3+2]=Math.min(255,bl/t*8+4)});
+  return{pal,map,size:boxes.length};
+}
+function nearest(P,key){
+  const r=(key>>10&31)*8+4,g=(key>>5&31)*8+4,b=(key&31)*8+4;let bi=0,bd=1e9;
+  for(let i=0;i<P.size;i++){const dr=P.pal[i*3]-r,dg=P.pal[i*3+1]-g,db=P.pal[i*3+2]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;bi=i}}
+  return P.map[key]=bi;
+}
+function indexFrame(f,P){
+  const d=f.data,n=d.length>>2,out=new Uint8Array(n),m=P.map;
+  for(let i=0,p=0;i<n;i++,p+=4){const k=(d[p]>>3<<10)|(d[p+1]>>3<<5)|(d[p+2]>>3);let x=m[k];if(x<0)x=nearest(P,k);out[i]=x}
+  return out;
+}
+
+/* ---- GIFエンコーダ ---- */
+function lzw(px){
+  const out=[];let cur=0,nb=0,bits=9,maxc=511,next=258;const dict=new Map();
+  const emit=c=>{cur|=c<<nb;nb+=bits;while(nb>=8){out.push(cur&255);cur>>>=8;nb-=8}};
+  emit(256);let pre=px[0];
+  for(let i=1;i<px.length;i++){
+    const k=px[i],key=(pre<<8)|k,v2=dict.get(key);
+    if(v2!==undefined){pre=v2;continue}
+    emit(pre);
+    if(next>maxc&&bits<12){bits++;maxc=(1<<bits)-1}
+    if(next<4096)dict.set(key,next++);else{emit(256);dict.clear();next=258;bits=9;maxc=511}
+    pre=k;
+  }
+  emit(pre);emit(257);if(nb>0)out.push(cur&255);
+  return out;
+}
+const u16=n=>[n&255,n>>8&255];
+function frameBytes(idx,W,H,delay){
+  const parts=[[0x21,0xF9,4,4,...u16(delay),0,0],[0x2C,0,0,0,0,...u16(W),...u16(H),0,8]];
+  const data=lzw(idx),sub=[];
+  for(let i=0;i<data.length;i+=255){const c=data.slice(i,i+255);sub.push(c.length,...c)}
+  sub.push(0);parts.push(sub);
+  return new Uint8Array(parts.flat());
+}
+
+/* ---- 映像の取得: 再生しながら、画面に出た全コマの「動画内時刻(mediaTime)」を記録し、時刻の順に割り当てる ---- */
+async function captureVideo(p,W,H,ctx,onP){
+  const n=p.n,f=new Array(n),mt=new Array(n),T=i=>p.st+i*p.step;
+  if(!('requestVideoFrameCallback' in v)){
+    for(let i=0;i<n;i++){
+      await seek(Math.min(T(i),dur-.001));
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      ctx.drawImage(v,0,0,W,H);f[i]=ctx.getImageData(0,0,W,H);mt[i]=v.currentTime;
+      if(i%3===0){onP(i,n);await tick()}
+    }
+    return{f,mt,mode:'seek'};
+  }
+  await seek(p.st);
+  let ti=0,prev=null,prevM=-1,wd;
+  const assign=(d,m,upto)=>{while(ti<n&&T(ti)<upto){f[ti]=d;mt[ti]=m;ti++}};
+  await new Promise(resolve=>{
+    let done=false,last=performance.now();
+    const fin=()=>{if(done)return;done=true;clearInterval(wd);v.onended=null;v.pause();resolve()};
+    const rest=()=>{if(prev)assign(prev,prevM,1e9);fin()};
+    const cb=(now,md)=>{
+      if(done)return;last=performance.now();
+      const m=md.mediaTime;
+      if(m<prevM){v.requestVideoFrameCallback(cb);return}
+      ctx.drawImage(v,0,0,W,H);
+      const cur=ctx.getImageData(0,0,W,H);
+      if(prev)assign(prev,prevM,m);else assign(cur,m,m);
+      prev=cur;prevM=m;onP(ti,n);
+      if(ti>=n)return fin();
+      v.requestVideoFrameCallback(cb);
+    };
+    v.onended=rest;
+    wd=setInterval(()=>{if(performance.now()-last>7000)rest()},500);
+    v.playbackRate=0.5;
+    v.requestVideoFrameCallback(cb);
+    v.play().catch(rest);
+  });
+  v.playbackRate=1;
+  if(ti<n)throw new Error('映像のコマを取得できませんでした');
+  return{f,mt,mode:'play'};
+}
+
+/* ---- 変換本体: コマは必ず 0,1,2… の順に1枚ずつ取得し、配列の添字で順序を固定 ---- */
+$('go').onclick=async()=>{
+  const p=plan(),[W,H]=dims();
+  if(p.n<1){setMsg('開始〜終了の範囲が短すぎます');return}
+  $('go').disabled=true;$('res').style.display='none';$('bar').style.display='block';
+  const bar=$('bar').firstElementChild,prog=x=>bar.style.width=(x*100).toFixed(1)+'%';
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d',{willReadFrequently:true});
+  const text=$('cap').value.trim(),showNum=$('num').checked,frames=new Array(p.n);
+  try{
+    if(!isAudio){v.pause();v.muted=true}
+    srcT=[];
+    const raw=isAudio?null:await captureVideo(p,W,H,ctx,(a,b)=>{prog(a/b*.4);setMsg(`映像を取得中 ${a}/${b}`)});
+    if(raw)srcT=raw.mt;
+    for(let i=0;i<p.n;i++){
+      const t=Math.min(p.st+i*p.step,Math.max(0,dur-.001));
+      if(isAudio){drawAudio(ctx,W,H,t,i,p.n);srcT[i]=t}
+      else ctx.putImageData(raw.f[i],0,0);
+      ctx.textAlign='center';ctx.lineJoin='round';
+      if(text){ctx.font=`bold ${Math.round(H/10)}px sans-serif`;ctx.lineWidth=Math.max(2,H/60);ctx.strokeStyle='#000';ctx.fillStyle='#fff';ctx.strokeText(text,W/2,H-H/24,W-8);ctx.fillText(text,W/2,H-H/24,W-8)}
+      if(showNum){const s='#'+(i+1);ctx.font=`bold ${Math.round(H/12)}px sans-serif`;ctx.textAlign='left';ctx.lineWidth=4;ctx.strokeStyle='#000';ctx.fillStyle='#ff0';ctx.strokeText(s,6,H/12+4);ctx.fillText(s,6,H/12+4)}
+      frames[i]=ctx.getImageData(0,0,W,H);if(raw)raw.f[i]=null;
+      if(i%3===0){prog(i/p.n*.5);setMsg(`コマを取得中 ${i+1}/${p.n}`);await tick()}
+    }
+    ord=[...frames.keys()];
+    const mode=$('mode').value;
+    if(mode==='r')ord.reverse();
+    else if(mode==='b'&&p.n>2)ord=ord.concat(ord.slice(1,-1).reverse());
+    setMsg('色パレットを作成中…');await tick();
+    const P=makePalette(frames,+$('q').value);
+    const lp=Math.max(0,Math.floor(+$('lp').value||0));
+    const chunks=[new Uint8Array([71,73,70,56,57,97,...u16(W),...u16(H),0xF7,0,0]),P.pal];
+    if(lp!==1)chunks.push(new Uint8Array([0x21,0xFF,11,...'NETSCAPE2.0'.split('').map(c=>c.charCodeAt(0)),3,1,...u16(lp===0?0:lp-1),0]));
+    for(let k=0;k<ord.length;k++){
+      const delay=Math.max(2,Math.round((k+1)*100/p.fps)-Math.round(k*100/p.fps));
+      chunks.push(frameBytes(indexFrame(frames[ord[k]],P),W,H,delay));
+      if(k%2===0){prog(.5+k/ord.length*.5);setMsg(`GIFを書き出し中 ${k+1}/${ord.length}`);await tick()}
+    }
+    chunks.push(new Uint8Array([0x3B]));
+    const blob=new Blob(chunks,{type:'image/gif'});
+    if(outUrl)URL.revokeObjectURL(outUrl);outUrl=URL.createObjectURL(blob);
+    $('out').src=outUrl;$('dl').href=outUrl;
+    $('dl').download=file.name.replace(/\.[^.]+$/,'')+'.gif';
+    shown=frames;cv2(W,H);const okOrd=srcT.every((x,i)=>i===0||x>=srcT[i-1]);
+    $('stat').textContent=`サイズ ${(blob.size/1048576).toFixed(2)}MB / ${ord.length}コマ / ${W}×${H}px / ${p.fps}fps${p.fps>50?' (一部のブラウザでは50fps超は遅く再生されます)':''}`;
+    $('stat').textContent+=` / 取得方法: ${raw?(raw.mode==='seek'?'シーク (旧方式)':'再生しながら全コマの時刻を記録'):'音声'} / 順序チェック: ${okOrd?'OK (動画内の時刻が必ず前から後ろへ進んでいます)':'NG'}`;
+    $('res').style.display='block';prog(1);setMsg('完了しました');
+    $('res').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){setMsg('エラー: '+e.message)}
+  $('go').disabled=false;
+};
+function cv2(W,H){
+  const c=$('cv');c.width=W;c.height=H;const s=$('sl');s.max=ord.length-1;s.value=0;show(0);
+}
+function show(k){
+  $('cv').getContext('2d').putImageData(shown[ord[k]],0,0);
+  $('fl').textContent=`GIFの ${k+1}/${ord.length} コマ目 (元の動画の ${(srcT[ord[k]]||0).toFixed(3)} 秒のコマ)`;
+}
+$('sl').oninput=e=>show(+e.target.value);
+</script>
+</body>
+</html>
